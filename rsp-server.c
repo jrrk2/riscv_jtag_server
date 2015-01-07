@@ -2816,6 +2816,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       mp_hash_add (type, addr, instbuf[0]);
       instbuf[0] = OR1K_TRAP_INSTR;  // Set the TRAP instruction
       dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
+      dbg_cpu0_write(SPR_ICBIR, addr);  // Flush the modified instruction from the cache
       put_str_packet ("OK");
       break;
      
