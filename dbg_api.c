@@ -349,7 +349,6 @@ int dbg_wb_write_block8(uint32_t adr, uint8_t *data, int len) {
 int dbg_cpu0_read(uint32_t adr, uint32_t *data) {
   int err;
   pthread_mutex_lock(&dbg_access_mutex);
-
   if(DEBUG_HARDWARE == DBG_HW_ADVANCED)
     {
       if ((err = adbg_select_module(DC_CPU0)))
@@ -380,6 +379,7 @@ int dbg_cpu0_read_block(uint32_t adr, uint32_t *data, int count) {
   if(DEBUG_HARDWARE == DBG_HW_ADVANCED)
     {
       pthread_mutex_lock(&dbg_access_mutex);
+      
       if ((err = adbg_select_module(DC_CPU0)))
 	{
 	  cable_flush();
@@ -479,8 +479,8 @@ int dbg_cpu0_write_ctrl(uint32_t adr, uint8_t data) {
 	pthread_mutex_unlock(&dbg_access_mutex);
 	return err;
       }
-      if((err = adbg_ctrl_write(DBG_CPU0_REG_STATUS, &dataword, 2))) {
-	printf("Failed to write chain to 0x%X control reg 0x%X\n", DC_CPU0,DBG_CPU0_REG_STATUS );  // Only 2 bits: Reset, Stall
+      if((err = adbg_ctrl_write(DBG_CPU0_REG_STATUS, &dataword, DBG_CPU0_REG_STATUS_LEN))) {
+	printf("Failed to write chain to 0x%X control reg 0x%X\n", DC_CPU0,DBG_CPU0_REG_STATUS );
 	cable_flush();
 	pthread_mutex_unlock(&dbg_access_mutex);
 	return err;
@@ -515,7 +515,7 @@ int dbg_cpu0_read_ctrl(uint32_t adr, uint8_t *data) {
 	pthread_mutex_unlock(&dbg_access_mutex);
 	return err;
       }
-      if ((err = adbg_ctrl_read(DBG_CPU0_REG_STATUS, &dataword, 2))) {
+      if ((err = adbg_ctrl_read(DBG_CPU0_REG_STATUS, &dataword, DBG_CPU0_REG_STATUS_LEN))) {
 	printf("Failed to read chain 0x%X control reg 0x%X\n", DC_CPU0, DBG_CPU0_REG_STATUS);
 	cable_flush();
 	pthread_mutex_unlock(&dbg_access_mutex);
@@ -610,7 +610,8 @@ int dbg_cpu1_write_ctrl(uint32_t adr, uint8_t data) {
 	pthread_mutex_unlock(&dbg_access_mutex);
 	return err;
       }
-      if((err = adbg_ctrl_write(DBG_CPU1_REG_STATUS, &dataword, 2))) {
+      
+      if((err = adbg_ctrl_write(DBG_CPU1_REG_STATUS, &dataword, DBG_CPU1_REG_STATUS_LEN))) {
 	printf("Failed to write chain to 0x%X control reg 0x%X\n", DC_CPU1,DBG_CPU0_REG_STATUS );  // Only 2 bits: Reset, Stall
 	cable_flush();
 	pthread_mutex_unlock(&dbg_access_mutex);
@@ -644,7 +645,7 @@ int dbg_cpu1_read_ctrl(uint32_t adr, uint8_t *data) {
 	pthread_mutex_unlock(&dbg_access_mutex);
 	return err;
       }
-      if ((err = adbg_ctrl_read(DBG_CPU1_REG_STATUS, &dataword, 2))) {
+      if ((err = adbg_ctrl_read(DBG_CPU1_REG_STATUS, &dataword, DBG_CPU1_REG_STATUS_LEN))) {
 	printf("Failed to read chain 0x%X control reg 0x%X\n", DC_CPU0, DBG_CPU1_REG_STATUS);
 	cable_flush();
 	pthread_mutex_unlock(&dbg_access_mutex);

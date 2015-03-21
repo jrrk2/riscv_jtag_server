@@ -97,7 +97,7 @@ int adbg_select_module(int chain)
   err |= tap_set_shift_dr();    /* SHIFT_DR */ 
   
   /* write data, EXIT1_DR */
-  err |= jtag_write_stream(&data, 3, 1);  // When TMS is set (last parameter), DR length is also adjusted; EXIT1_DR
+  err |= jtag_write_stream(&data, DBG_MODULE_SELECT_REG_SIZE+1, 1);  // When TMS is set (last parameter), DR length is also adjusted; EXIT1_DR
 
   // *** If 'valid module selected' feedback is ever added, test it here
 
@@ -312,13 +312,15 @@ int adbg_burst_command(unsigned int opcode, unsigned long address, int length_wo
   debug("burst op %i adr 0x%lX len %i\n", opcode, address, length_words);
 
   // Set up the data
+  // TODO cpuId should contain the cpu we want to access
+  int cpuId = 0;
   data[0] = length_words | (address << 16);
-  data[1] = ((address >> 16) | ((opcode & 0xf) << 16)) & ~(0x1<<20); // MSB must be 0 to access modules
+  data[1] = ((address >> 16) | ((opcode & 0xf) << 20) | (cpuId << 16)) & ~(0x1<<24); // MSB must be 0 to access modules
 
   err |= tap_set_shift_dr();  /* SHIFT_DR */ 
   
   /* write data, EXIT1_DR */
-  err |= jtag_write_stream(data, 53, 1);  // When TMS is set (last parameter), DR length is also adjusted; EXIT1_DR
+  err |= jtag_write_stream(data, 57, 1);  // When TMS is set (last parameter), DR length is also adjusted; EXIT1_DR
 
   err |= tap_exit_to_idle();  // Go from EXIT1 to IDLE
 
@@ -504,7 +506,7 @@ int adbg_wb_burst_read(int word_size_bytes, int word_count, unsigned long start_
        }
 
        crc_calc = adbg_compute_crc(crc_calc, in_data, word_size_bits);
-     
+
        if(word_size_bytes == 1) ((unsigned char *)data)[i] = in_data & 0xFF;
        else if(word_size_bytes == 2) ((unsigned short *)data)[i] = in_data & 0xFFFF;
        else ((unsigned long *)data)[i] = in_data;

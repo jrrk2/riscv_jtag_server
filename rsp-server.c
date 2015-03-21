@@ -707,8 +707,10 @@ rsp_server_request ()
   dbg_cpu0_write(SPR_DSR, tmp|SPR_DSR_TE|SPR_DSR_FPE|SPR_DSR_RE|SPR_DSR_IIE|SPR_DSR_AE|SPR_DSR_BUSEE);
 
   /* Enable TRAP exception, but don't otherwise change the SR */
-  dbg_cpu0_read(SPR_SR, &tmp);
-  dbg_cpu0_write(SPR_SR, tmp|SPR_SR_SM);  // We set 'supervisor mode', which also enables TRAP exceptions
+  // TODO Don't manage to access this register while the core is not stopped
+  // Not so annoying for Mia, we are always in supervisor mode
+  //dbg_cpu0_read(SPR_SR, &tmp);
+  //dbg_cpu0_write(SPR_SR, tmp|SPR_SR_SM);  // We set 'supervisor mode', which also enables TRAP exceptions
 
 }	/* rsp_server_request () */
 
@@ -1794,7 +1796,12 @@ rsp_read_all_regs ()
   unsigned int    errcode = APP_ERR_NONE;
 
   // Read all the GPRs in a single burst, for efficiency
-  errcode = dbg_cpu0_read_block(SPR_GPR_BASE, regbuf, MAX_GPRS);
+  // TODO with bursts, we get a wrong CRC from Mia
+  //errcode = dbg_cpu0_read_block(SPR_GPR_BASE, regbuf, MAX_GPRS);
+  int i;
+  for (i=0; i<MAX_GPRS; i++) {
+    errcode = dbg_cpu0_read(SPR_GPR_BASE+i, &regbuf[i]);
+  }
 
   /* Format the GPR data for output */
   for (r = 0; r < MAX_GPRS; r++)
@@ -1803,7 +1810,11 @@ rsp_read_all_regs ()
     }
 
   /* PPC, NPC and SR have consecutive addresses, read in one burst */
-  errcode |= dbg_cpu0_read_block(SPR_NPC, regbuf, 3);
+  // TODO with bursts, we get a wrong CRC from Mia
+  //errcode |= dbg_cpu0_read_block(SPR_NPC, regbuf, 3);
+  errcode |= dbg_cpu0_read(SPR_NPC, &regbuf[0]);
+  errcode |= dbg_cpu0_read(SPR_SR, &regbuf[1]);
+  errcode |= dbg_cpu0_read(SPR_PPC, &regbuf[2]);
 
   // Note that reg2hex adds a NULL terminator; as such, they must be
   // put in buf.data in numerical order:  PPC, NPC, SR

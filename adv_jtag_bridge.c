@@ -457,7 +457,6 @@ int main(int argc,  char *argv[]) {
     exit(1);
   }
 
-
   /* Initialize a new connection to the or1k board, and make sure we are
      really connected.  */
   configure_chain();

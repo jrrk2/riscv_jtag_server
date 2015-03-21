@@ -5,7 +5,7 @@
 
 // Definitions for the top-level debug unit.  This really just consists
 // of a single register, used to select the active debug module ("chain").
-#define DBG_MODULE_SELECT_REG_SIZE 2
+#define DBG_MODULE_SELECT_REG_SIZE 5
 #define DBG_MAX_MODULES 4  // used to size an array
 
 #define DC_WISHBONE 0
@@ -39,8 +39,10 @@
 
 
 // Internal register definitions for the CPU0 module
-#define DBG_CPU0_REG_SEL_LEN 1
+#define DBG_CPU0_REG_SEL_LEN 3
 #define DBG_CPU0_REG_STATUS 0
+// Width of the status register, 1 bit per core
+#define DBG_CPU0_REG_STATUS_LEN 4
 
 // Opcode definitions for the first CPU module
 #define DBG_CPU0_OPCODE_LEN   4
@@ -51,8 +53,10 @@
 #define DBG_CPU0_CMD_IREG_SEL 0xd  // There is no 'read', the current register is always read.  Use a NOP to read.
 
 // Internal register definitions for the CPU1 module
-#define DBG_CPU1_REG_SEL_LEN 1
+#define DBG_CPU1_REG_SEL_LEN 3
 #define DBG_CPU1_REG_STATUS 0
+// Width of the status register, 1 bit per core
+#define DBG_CPU1_REG_STATUS_LEN 4
 
 // Opcode definitions for the second CPU module
 #define DBG_CPU1_OPCODE_LEN   4
