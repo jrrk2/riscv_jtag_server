@@ -43,7 +43,7 @@
 #include "jsp_server.h"
 #include "hwp_server.h"
 
-#define debug(...) //fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG")) fprintf(stderr, __VA_ARGS__ )
 
 // How many command-line IR length settings to create by default
 #define IR_START_SETS 16

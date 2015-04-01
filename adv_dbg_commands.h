@@ -42,7 +42,7 @@
 #define DBG_CPU0_REG_SEL_LEN 3
 #define DBG_CPU0_REG_STATUS 0
 // Width of the status register, 1 bit per core
-#define DBG_CPU0_REG_STATUS_LEN 4
+#define DBG_CPU0_REG_STATUS_LEN 16
 
 // Opcode definitions for the first CPU module
 #define DBG_CPU0_OPCODE_LEN   4
@@ -56,7 +56,7 @@
 #define DBG_CPU1_REG_SEL_LEN 3
 #define DBG_CPU1_REG_STATUS 0
 // Width of the status register, 1 bit per core
-#define DBG_CPU1_REG_STATUS_LEN 4
+#define DBG_CPU1_REG_STATUS_LEN 16
 
 // Opcode definitions for the second CPU module
 #define DBG_CPU1_OPCODE_LEN   4

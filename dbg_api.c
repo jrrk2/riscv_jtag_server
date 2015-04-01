@@ -33,7 +33,7 @@
 #include "cable_common.h"
 #include "errcodes.h"
 
-#define debug(...) //fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG")) fprintf(stderr, __VA_ARGS__ )
 
 #define DBG_HW_ADVANCED 1
 #define DBG_HW_LEGACY   2

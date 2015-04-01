@@ -43,7 +43,7 @@
 
 #include "errcodes.h"
 
-#define debug(...)   //fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG")) fprintf(stderr, __VA_ARGS__ )
 
 #define JTAG_MAX_CABLES 16
 jtag_cable_t *jtag_cables[JTAG_MAX_CABLES];

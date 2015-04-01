@@ -48,6 +48,8 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hardware_monitor.h"
 #include "hwp_server.h"
 
+#include <pulp.h>
+
 /* Define to log each packet */
 #define RSP_TRACE  0
 
@@ -439,7 +441,6 @@ int handle_rsp (void)
 	}
     }
 
-  
   /* Poll the RSP client socket for a message from GDB */
   /* Also watch for a message from the hardware poller thread.
      This might be easier if we used ppoll() and sent a Signal, instead
@@ -484,6 +485,7 @@ int handle_rsp (void)
 	{
 	  //fprintf(stderr, "Got pipe event from monitor thread\n");
 	  ret = read(pipe_fds[1], &monitor_status, 1);  // Read the monitor status
+
 	  // *** TODO: Check return value of read()
 	  if(monitor_status == 'H')
 	    {
@@ -506,12 +508,14 @@ int handle_rsp (void)
 		      if (TARGET_SIGNAL_TRAP == rsp.sigval)
 			{
 			  if(NULL != mp_hash_lookup (BP_MEMORY, ppcval))  // Is this a breakpoint we set? (we also get a TRAP on single-step)
-			    {	  
+			    {	 
 			      //fprintf(stderr, "Resetting NPC to PPC\n");
 			      set_npc(ppcval);
 			    }
 			  else 
 			    {
+#if 0
+                              // In Mia Wallace, SPR_DM2 does not exist
 			      uint32_t dmr2val;
 			      dbg_cpu0_read(SPR_DMR2, &dmr2val);  // We need this to check for a hardware breakpoint
 			      if((dmr2val & SPR_DMR2_WBS) != 0)  // Is this a hardware breakpoint?
@@ -519,6 +523,7 @@ int handle_rsp (void)
 				  //fprintf(stderr, "Resetting NPC to PPC\n");
 				  set_npc(ppcval);
 				}
+#endif
 			    }
 			}
 		      
@@ -1127,6 +1132,12 @@ get_packet ()
 	      return &buf;
 	    }
 
+	  // Work-around for Mia Wallace
+	  // We are receiving invalid requests from gdb, just return from here
+	  // otherwise it can create a deadlock
+	  buf.data[0] = 0;
+	  return &buf;
+
 	  ch = get_rsp_char ();
 	}
 
@@ -1534,6 +1545,8 @@ reg2hex (unsigned long int  val,
 {
   int  n;			/* Counter for digits */
 
+  // The initial value does not seem to match gdb rsp spec
+#if 0
   for (n = 0; n < 8; n++)
     {
 #ifdef WORDSBIGENDIAN
@@ -1543,9 +1556,20 @@ reg2hex (unsigned long int  val,
 #endif
       buf[n] = hexchars[(val >> nyb_shift) & 0xf];
     }
+#else
+  for (n = 0; n < 4; n++)
+    {
+#ifdef WORDSBIGENDIAN
+#error Big endian not supported
+#else
+      buf[n*2] = hexchars[(val >> (n*8+4)) & 0xf];
+      buf[n*2+1] = hexchars[(val >> (n*8)) & 0xf];
+#endif
+    }
+  
+#endif
 
   buf[8] = 0;			/* Useful to terminate as string */
-
 }	/* reg2hex () */
 
 
@@ -1754,11 +1778,14 @@ rsp_continue_generic (unsigned long int  except)
   /* Clear Debug Reason Register */
   dbg_cpu0_write(SPR_DRR, 0);
   
+#if 0
+  // In Mia Wallace, SPR_DM2 does not exist
   /* Clear any watchpoints indicated in DMR2.  Any write to DMR2 will clear this (undocumented feature). */
   dbg_cpu0_read(SPR_DMR2, &tmp);
   if(tmp & SPR_DMR2_WBS) {  // don't waste the time writing if no hw breakpoints set
     dbg_cpu0_write(SPR_DMR2, tmp);
   }
+#endif
 
   /* Clear the single step trigger in Debug Mode Register 1 and set traps to be
      handled by the debug unit in the Debug Stop Register */
@@ -1795,40 +1822,35 @@ rsp_read_all_regs ()
   uint32_t        regbuf[MAX_GPRS];
   unsigned int    errcode = APP_ERR_NONE;
 
+  printf("Read all regs running %d\n", rsp.target_running);
+
   // Read all the GPRs in a single burst, for efficiency
   // TODO with bursts, we get a wrong CRC from Mia
-  //errcode = dbg_cpu0_read_block(SPR_GPR_BASE, regbuf, MAX_GPRS);
-  int i;
-  for (i=0; i<MAX_GPRS; i++) {
-    errcode = dbg_cpu0_read(SPR_GPR_BASE+i, &regbuf[i]);
-  }
-
+  errcode = dbg_cpu0_read_block(SPR_GPR_BASE, regbuf, MAX_GPRS);
+  
   /* Format the GPR data for output */
   for (r = 0; r < MAX_GPRS; r++)
     {
       reg2hex(regbuf[r], &(buf.data[r * 8]));
     }
-
+  
   /* PPC, NPC and SR have consecutive addresses, read in one burst */
   // TODO with bursts, we get a wrong CRC from Mia
-  //errcode |= dbg_cpu0_read_block(SPR_NPC, regbuf, 3);
-  errcode |= dbg_cpu0_read(SPR_NPC, &regbuf[0]);
-  errcode |= dbg_cpu0_read(SPR_SR, &regbuf[1]);
-  errcode |= dbg_cpu0_read(SPR_PPC, &regbuf[2]);
-
+  errcode |= dbg_cpu0_read_block(SPR_NPC, regbuf, 3);
+  
   // Note that reg2hex adds a NULL terminator; as such, they must be
   // put in buf.data in numerical order:  PPC, NPC, SR
   reg2hex(regbuf[2], &(buf.data[PPC_REGNUM * 8]));
-
+  
   if(use_cached_npc == 1) {  // Hackery to work around CPU hardware quirk 
     reg2hex(cached_npc, &(buf.data[NPC_REGNUM * 8]));
   }
   else {
     reg2hex(regbuf[0], &(buf.data[NPC_REGNUM * 8]));
   }
- 
+  
   reg2hex(regbuf[1], &(buf.data[SR_REGNUM  * 8]));
-
+ 
   //fprintf(stderr, "Read SPRs:  0x%08X, 0x%08X, 0x%08X\n", regbuf[0], regbuf[1], regbuf[2]);
 
   if(errcode == APP_ERR_NONE) {
@@ -2497,11 +2519,14 @@ rsp_step_generic (unsigned long int  except)
   tmp = 0;
   dbg_cpu0_write(SPR_DRR, tmp);  // *** TODO Check return value of all hardware accesses
   
+#if 0
+  // In Mia Wallace, SPR_DM2 does not exist
   /* Clear any watchpoint indicators in DMR2.  Any write to DMR2 will do this (undocumented feature) */
   dbg_cpu0_read(SPR_DMR2, &tmp);
   if(tmp & SPR_DMR2_WBS) {  // If no HW breakpoints, don't waste time writing
     dbg_cpu0_write(SPR_DMR2, tmp);
   }
+#endif
 
   /* Set the single step trigger in Debug Mode Register 1 and set traps to be
      handled by the debug unit in the Debug Stop Register */
@@ -2827,7 +2852,13 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       mp_hash_add (type, addr, instbuf[0]);
       instbuf[0] = OR1K_TRAP_INSTR;  // Set the TRAP instruction
       dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
+#if 0
       dbg_cpu0_write(SPR_ICBIR, addr);  // Flush the modified instruction from the cache
+#else
+      // With the shared pcache, we can only flush the whole cache
+      *(volatile int*) (ICACHE_CTRL_BASE_ADDR) = 0x0;
+      *(volatile int*) (ICACHE_CTRL_BASE_ADDR) = 0xF;
+#endif
       put_str_packet ("OK");
       break;
      
@@ -2986,13 +3017,21 @@ void set_stall_state(int stall)
   // Actually start or stop the CPU hardware
   if(stall) ret = write(pipe_fds[0], "S", 1); 
   else      ret = write(pipe_fds[0], "U", 1); 
- 
+
   if(!ret) {
     fprintf(stderr, "Warning: target monitor write() to pipe returned 0\n");
   }
   else if(ret < 0) {
     perror("Error in target monitor write to pipe");
   }
+
+  // TODO
+  // In the initial version, we don't wait until the hardware monitor actually changes the
+  // stall state so it could happen we try to access core registers whereas the core is still running
+  // We should remove the hardware monitor and do everything here sequentially
+  // As a work-around we just wait for an acknolegement from the hardware monitor
+  unsigned char dummy;
+  ret = read(pipe_fds[1], &dummy, 1); 
 
   return;
 }

@@ -34,7 +34,7 @@
 #include "errcodes.h"
 #include "utilities.h"
 
-#define debug(...) //fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG")) fprintf(stderr, __VA_ARGS__ )
 
 // How many '0' status bits to get during a burst read
 // before giving up
@@ -305,6 +305,7 @@ int adbg_ctrl_read(unsigned long regidx, uint32_t *data, int databits) {
 int adbg_burst_command(unsigned int opcode, unsigned long address, int length_words) {
   uint32_t data[2];
   int err = APP_ERR_NONE;
+  int cmdLen;
 
   if(err |= adbg_select_module(desired_chain))
     return err;
@@ -315,12 +316,21 @@ int adbg_burst_command(unsigned int opcode, unsigned long address, int length_wo
   // TODO cpuId should contain the cpu we want to access
   int cpuId = 0;
   data[0] = length_words | (address << 16);
-  data[1] = ((address >> 16) | ((opcode & 0xf) << 20) | (cpuId << 16)) & ~(0x1<<24); // MSB must be 0 to access modules
+  
+  // Be careful, on Mia, the command length is different for AXI and cores as the command
+  // for cores contains the core ID
+  if (desired_chain == 0) {
+    data[1] = (address >> 16) | ((opcode & 0xf) << 16); // MSB must be 0 to access modules
+    cmdLen = 53;
+  } else {
+    data[1] = (address >> 16) | ((opcode & 0xf) << 20) | (cpuId << 16); // MSB must be 0 to access modules
+    cmdLen = 57;
+  }
 
   err |= tap_set_shift_dr();  /* SHIFT_DR */ 
   
   /* write data, EXIT1_DR */
-  err |= jtag_write_stream(data, 57, 1);  // When TMS is set (last parameter), DR length is also adjusted; EXIT1_DR
+  err |= jtag_write_stream(data, cmdLen, 1);  // When TMS is set (last parameter), DR length is also adjusted; EXIT1_DR
 
   err |= tap_exit_to_idle();  // Go from EXIT1 to IDLE
 

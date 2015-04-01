@@ -34,7 +34,7 @@
 #include "adv_dbg_commands.h"  // for the kludge in tap_reset()
 #include "errcodes.h"
 
-#define debug(...) //fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG1")) fprintf(stderr, __VA_ARGS__ )
 
 // How many tries before an abort
 #define NUM_SOFT_RETRIES 0

@@ -37,7 +37,7 @@
 #include "errcodes.h"
 #include "legacy_dbg_commands.h"
 
-#define debug(...) //fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG")) fprintf(stderr, __VA_ARGS__ )
 
 #define LEGACY_CRC_POLY 0x04c11db7
 #define DBG_CRC_SIZE 32

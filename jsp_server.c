@@ -38,7 +38,7 @@
 #include "errcodes.h"
 
 
-#define debug(...) // fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG")) fprintf(stderr, __VA_ARGS__ )
 
 int jsp_server_fd = -1;
 int jsp_client_fd = -1;

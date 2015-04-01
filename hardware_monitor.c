@@ -30,7 +30,7 @@
 #include "dbg_api.h"
 #include "errcodes.h"
 
-#define debug(...) //fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG")) fprintf(stderr, __VA_ARGS__ )
 
 #define MAX_MONITOR_CONNECTIONS 5
 
@@ -234,11 +234,13 @@ void *target_handler(void *arg)
 		      if(cmd == 'S')  
 			{
 			  if(target_is_running)  stall_cpu(1); 
+			  notify_listeners("A", 1);
 			  notify_listeners("H", 1);
 			}
 		      else if(cmd == 'U')  
 			{
 			  if(!target_is_running) stall_cpu(0);
+			  notify_listeners("A", 1);
 			  notify_listeners("R", 1);
 			}
 		      else

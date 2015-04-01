@@ -33,7 +33,7 @@
 #include "cable_sim.h"
 #include "errcodes.h"
 
-#define debug(...) //fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG10")) fprintf(stderr, __VA_ARGS__ )
 
 /* Only used in the vpi */
 jtag_cable_t vpi_cable_driver = {
