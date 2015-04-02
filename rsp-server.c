@@ -1545,7 +1545,7 @@ reg2hex (unsigned long int  val,
 {
   int  n;			/* Counter for digits */
 
-  // The initial value does not seem to match gdb rsp spec
+  // The initial implementation does not seem to match gdb rsp spec
 #if 0
   for (n = 0; n < 8; n++)
     {
@@ -1589,6 +1589,8 @@ hex2reg (char *buf)
   int                n;		/* Counter for digits */
   unsigned long int  val = 0;	/* The result */
 
+  // The initial implementation does not seem to match gdb rsp spec
+#if 0
   for (n = 0; n < 8; n++)
     {
 #ifdef WORDSBIGENDIAN
@@ -1598,6 +1600,17 @@ hex2reg (char *buf)
 #endif
       val |= hex (buf[n]) << nyb_shift;
     }
+#else
+  for (n = 0; n < 4; n++)
+    {
+#ifdef WORDSBIGENDIAN
+#error Big endian not supported
+#else
+      val |= hex (buf[n]) << (n*8+4);
+      val |= hex (buf[n]) << (n*8);
+#endif
+    }
+#endif
 
   return val;
 
@@ -1821,8 +1834,6 @@ rsp_read_all_regs ()
   int             r;			/* Register index */
   uint32_t        regbuf[MAX_GPRS];
   unsigned int    errcode = APP_ERR_NONE;
-
-  printf("Read all regs running %d\n", rsp.target_running);
 
   // Read all the GPRs in a single burst, for efficiency
   // TODO with bursts, we get a wrong CRC from Mia
@@ -2856,8 +2867,10 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       dbg_cpu0_write(SPR_ICBIR, addr);  // Flush the modified instruction from the cache
 #else
       // With the shared pcache, we can only flush the whole cache
-      *(volatile int*) (ICACHE_CTRL_BASE_ADDR) = 0x0;
-      *(volatile int*) (ICACHE_CTRL_BASE_ADDR) = 0xF;
+      uint32_t val = 0;
+      dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1);
+      val = 0xF;
+      dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1);
 #endif
       put_str_packet ("OK");
       break;
