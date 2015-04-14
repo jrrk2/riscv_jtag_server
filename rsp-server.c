@@ -2763,6 +2763,14 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
 	{
 	  instbuf[0] = mpe->instr;
 	  dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
+
+	  // With the shared pcache, we can only flush the whole cache
+	  uint32_t val = 0;
+	  dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
+	  val = 0xFFFFFFFF;
+	  dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Enable all shared banks
+	  dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR+0x0C, &val, 1); // Flush all L0 buffers
+
 	  free (mpe);
 	}
 
@@ -2868,9 +2876,10 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
 #else
       // With the shared pcache, we can only flush the whole cache
       uint32_t val = 0;
-      dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1);
-      val = 0xF;
-      dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1);
+      dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
+      val = 0xFFFFFFFF;
+      dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Enable all shared banks
+      dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR+0x0C, &val, 1); // Flush all L0 buffers
 #endif
       put_str_packet ("OK");
       break;
