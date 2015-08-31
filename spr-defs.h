@@ -27,6 +27,9 @@
 #ifndef SPR_DEFS__H
 #define SPR_DEFS__H
 
+#define SPR_PPC       0x3001
+#define SPR_NPC       0x3000
+
 /* Definition of special-purpose registers (SPRs). */
 
 #define MAX_GRPS (32)
@@ -57,9 +60,7 @@
 #define SPR_ICCFGR	(SPRGROUP_SYS + 6)
 #define SPR_DCFGR	(SPRGROUP_SYS + 7)
 #define SPR_PCCFGR	(SPRGROUP_SYS + 8)
-#define SPR_NPC         (SPRGROUP_SYS + 16)  /* CZ 21/06/01 */
 #define SPR_SR		(SPRGROUP_SYS + 17)  /* CZ 21/06/01 */
-#define SPR_PPC         (SPRGROUP_SYS + 18)  /* CZ 21/06/01 */
 #define SPR_EPCR_BASE	(SPRGROUP_SYS + 32)  /* CZ 21/06/01 */
 #define SPR_EPCR_LAST	(SPRGROUP_SYS + 47)  /* CZ 21/06/01 */
 #define SPR_EEAR_BASE	(SPRGROUP_SYS + 48)

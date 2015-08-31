@@ -49,6 +49,7 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hwp_server.h"
 
 #include <pulp.h>
+//#define HAS_ICACHE
 
 /* Define to log each packet */
 #define RSP_TRACE  0
@@ -60,13 +61,12 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define OR1KSIM_RSP_PROTOCOL  "tcp"
 
 /* Indices of GDB registers that are not GPRs. Must match GDB settings! */
-#define PPC_REGNUM  (MAX_GPRS + 0)	/*!< Previous PC */
-#define NPC_REGNUM  (MAX_GPRS + 1)	/*!< Next PC */
-#define SR_REGNUM   (MAX_GPRS + 2)	/*!< Supervision Register */
-#define NUM_REGS    (MAX_GRPS + 3)	/*!< Total GDB registers */
+#define NPC_REGNUM  (MAX_GPRS + 0)	/*!< Next PC */
+#define NUM_REGS    (MAX_GRPS + 1)	/*!< Total GDB registers */
 
 /*! Trap instruction for OR32 */
 #define OR1K_TRAP_INSTR  0x21000001
+#define RV32_TRAP_INSTR  0x00100073
 
 /*! Definition of GDB target signals. Data taken from the GDB 6.8
     source. Only those we use defined here. */
@@ -1606,8 +1606,8 @@ hex2reg (char *buf)
 #ifdef WORDSBIGENDIAN
 #error Big endian not supported
 #else
-      val |= hex (buf[n]) << (n*8+4);
-      val |= hex (buf[n]) << (n*8);
+      val |= hex (buf[2*n])   << (n*8+4);
+      val |= hex (buf[2*n+1]) << (n*8);
 #endif
     }
 #endif
@@ -1845,24 +1845,12 @@ rsp_read_all_regs ()
       reg2hex(regbuf[r], &(buf.data[r * 8]));
     }
   
-  /* PPC, NPC and SR have consecutive addresses, read in one burst */
-  // TODO with bursts, we get a wrong CRC from Mia
-  errcode |= dbg_cpu0_read_block(SPR_NPC, regbuf, 3);
+  /* NPC */
+  errcode |= dbg_cpu0_read_block(SPR_NPC, regbuf, 1);
   
   // Note that reg2hex adds a NULL terminator; as such, they must be
   // put in buf.data in numerical order:  PPC, NPC, SR
-  reg2hex(regbuf[2], &(buf.data[PPC_REGNUM * 8]));
-  
-  if(use_cached_npc == 1) {  // Hackery to work around CPU hardware quirk 
-    reg2hex(cached_npc, &(buf.data[NPC_REGNUM * 8]));
-  }
-  else {
-    reg2hex(regbuf[0], &(buf.data[NPC_REGNUM * 8]));
-  }
-  
-  reg2hex(regbuf[1], &(buf.data[SR_REGNUM  * 8]));
- 
-  //fprintf(stderr, "Read SPRs:  0x%08X, 0x%08X, 0x%08X\n", regbuf[0], regbuf[1], regbuf[2]);
+  reg2hex(regbuf[0], &(buf.data[NPC_REGNUM * 8]));
 
   if(errcode == APP_ERR_NONE) {
     /* Finalize the packet and send it */
@@ -1911,21 +1899,8 @@ rsp_write_all_regs (struct rsp_buf *buf)
 
   /* PPC, NPC and SR */
   regbuf[0] = hex2reg (&(buf->data[NPC_REGNUM * 8]));
-  regbuf[1] = hex2reg (&(buf->data[SR_REGNUM  * 8]));
-  regbuf[2] = hex2reg (&(buf->data[PPC_REGNUM * 8]));
 
   errcode |= dbg_cpu0_write_block(SPR_NPC, regbuf, 3);
-
-  /*
-  tmp = hex2reg (&(buf->data[PPC_REGNUM * 8]));
-  dbg_cpu0_write(SPR_PPC, tmp); 
-
-  tmp = hex2reg (&(buf->data[SR_REGNUM  * 8]));
-  dbg_cpu0_write(SPR_SR, tmp); 
-
-  tmp = hex2reg (&(buf->data[NPC_REGNUM * 8]));
-  dbg_cpu0_write(SPR_NPC, tmp); 
-  */
 
   if(errcode == APP_ERR_NONE)
     put_str_packet ("OK");
@@ -2115,10 +2090,6 @@ rsp_read_reg (struct rsp_buf *buf)
     {
       errcode = dbg_cpu0_read(SPR_GPR_BASE+regnum, &tmp);
     }
-  else if (PPC_REGNUM == regnum)
-    {
-      errcode = dbg_cpu0_read(SPR_PPC, &tmp);
-    }
   else if (NPC_REGNUM == regnum)
     {
       if(use_cached_npc) {
@@ -2126,10 +2097,6 @@ rsp_read_reg (struct rsp_buf *buf)
       } else {
 	errcode = dbg_cpu0_read(SPR_NPC, &tmp);
       }
-    }
-  else if (SR_REGNUM == regnum)
-    {
-      errcode = dbg_cpu0_read(SPR_SR, &tmp);
     }
   else
     {
@@ -2185,17 +2152,10 @@ rsp_write_reg (struct rsp_buf *buf)
     {
       errcode = dbg_cpu0_write(SPR_GPR_BASE+regnum, hex2reg(valstr));
     }
-  else if (PPC_REGNUM == regnum)
-    {
-      errcode = dbg_cpu0_write(SPR_PPC, hex2reg(valstr));
-    }
   else if (NPC_REGNUM == regnum)
     {
+      fprintf (stderr, "Got string: %s\n", valstr);
       errcode = set_npc (hex2reg (valstr));
-    }
-  else if (SR_REGNUM == regnum)
-    {
-      errcode = dbg_cpu0_write(SPR_SR, hex2reg(valstr));
     }
   else
     {
@@ -2764,12 +2724,14 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
 	  instbuf[0] = mpe->instr;
 	  dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
 
+#ifdef HAS_CACHE
 	  // With the shared pcache, we can only flush the whole cache
 	  uint32_t val = 0;
 	  dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
 	  val = 0xFFFFFFFF;
 	  dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Enable all shared banks
 	  dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR+0x0C, &val, 1); // Flush all L0 buffers
+#endif
 
 	  free (mpe);
 	}
@@ -2869,11 +2831,11 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       /* Memory breakpoint - substitute a TRAP instruction */
       dbg_wb_read_block32(addr, instbuf, 1);  // Get the old instruction.  *** TODO Check return value
       mp_hash_add (type, addr, instbuf[0]);
-      instbuf[0] = OR1K_TRAP_INSTR;  // Set the TRAP instruction
+      instbuf[0] = RV32_TRAP_INSTR;  // Set the TRAP instruction
       dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
 #if 0
       dbg_cpu0_write(SPR_ICBIR, addr);  // Flush the modified instruction from the cache
-#else
+#elif HAS_CACHE
       // With the shared pcache, we can only flush the whole cache
       uint32_t val = 0;
       dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
