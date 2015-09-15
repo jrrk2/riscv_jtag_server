@@ -69,6 +69,8 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define RV32_TRAP_INSTR   0x00100073
 #define RVC32_TRAP_INSTR  0x1000
 
+#define IS_COMPRESSED(instr) ((instr & 0x3) != 0x3)
+
 /*! Definition of GDB target signals. Data taken from the GDB 6.8
     source. Only those we use defined here. */
 enum target_signal {
@@ -2723,7 +2725,14 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
       if (NULL != mpe)
         {
           instbuf[0] = mpe->instr;
-          dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
+
+          // check if original instruction was compressed
+          if ( IS_COMPRESSED(instbuf[0]) ) {
+            dbg_wb_write_block16(addr, (uint16_t*)instbuf, 1);  // *** TODO Check return value
+          } else {
+            dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
+          }
+
           fprintf(stderr, "Replacing instr with original at addr %08X\n", addr);
 
 #ifdef HAS_CACHE
@@ -2833,8 +2842,15 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       /* Memory breakpoint - substitute a TRAP instruction */
       dbg_wb_read_block32(addr, instbuf, 1);  // Get the old instruction.  *** TODO Check return value
       mp_hash_add (type, addr, instbuf[0]);
-      instbuf[0] = RV32_TRAP_INSTR;  // Set the TRAP instruction
-      dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
+
+      // check if the instruction is compressed
+      if ( IS_COMPRESSED(instbuf[0]) ) {
+        instbuf[0] = RVC32_TRAP_INSTR;  // Set the TRAP instruction
+        dbg_wb_write_block16(addr, (uint16_t*)instbuf, 1);  // *** TODO Check return value
+      } else {
+        instbuf[0] = RV32_TRAP_INSTR;  // Set the TRAP instruction
+        dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
+      }
 #if 0
       dbg_cpu0_write(SPR_ICBIR, addr);  // Flush the modified instruction from the cache
 #elif HAS_CACHE
