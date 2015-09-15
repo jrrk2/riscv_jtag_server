@@ -512,7 +512,7 @@ int handle_rsp (void)
                         {
                           if(NULL != mp_hash_lookup (BP_MEMORY, ppcval))  // Is this a breakpoint we set? (we also get a TRAP on single-step)
                             {
-                              fprintf(stderr, "Resetting NPC to PPC\n");
+                              //fprintf(stderr, "Resetting NPC to PPC\n");
                               set_npc(ppcval);
                             }
                           else 
@@ -2733,7 +2733,7 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
             dbg_wb_write_block32(addr, instbuf, 1);  // *** TODO Check return value
           }
 
-          fprintf(stderr, "Replacing instr with original at addr %08X\n", addr);
+          //fprintf(stderr, "Replacing instr with original at addr %08X\n", addr);
 
 #ifdef HAS_CACHE
           // With the shared pcache, we can only flush the whole cache

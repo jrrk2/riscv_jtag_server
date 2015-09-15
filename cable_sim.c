@@ -251,7 +251,7 @@ int cable_vpi_inout(uint8_t value, uint8_t *inval)
   recv(vpi_comm, &dat, 1, 0);
 
   if(dat > 1)
-    fprintf(stderr, "Unexpected value: %i\n", dat);
+    fprintf(stderr, "cable_vpi_inout: Unexpected value: %i\n", dat);
 
   cable_vpi_out(value);
 
