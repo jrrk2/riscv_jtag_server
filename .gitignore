@@ -1,0 +1,9 @@
+*~
+*.swp
+*.o
+
+
+config.log
+config.guess
+config.status
+config.sub
