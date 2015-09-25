@@ -92,6 +92,28 @@ else
 fi
 
 
+# ----------- Check whether to ZYNQ cable -----------
+
+AC_MSG_CHECKING(whether to support ZYNQ cable)
+AC_ARG_ENABLE([zynq-cable],
+              [AS_HELP_STRING([--enable-zynq-cable=[[yes/no]]],
+                              [support ZYNQ cable [default=yes]])],
+              [case "${enableval}" in
+               yes) support_zynq=true ;;
+               no)  support_zynq=false ;;
+               *) AC_MSG_ERROR([bad value ${enableval} for --enable-zynq-cable]) ;;
+               esac],
+              support_zynq=not_given)
+
+if [ test $support_zynq = not_given ]
+then
+    support_zynq=false
+fi
+
+AM_CONDITIONAL(SUPPORT_ZYNQ_CABLE,[test x$support_zynq = xtrue])
+AM_COND_IF([SUPPORT_ZYNQ_CABLE],[AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)])
+
+
 # ----------- Check whether to support parallel cables -----------
 
 AC_MSG_CHECKING(whether to support parallel cables)
@@ -143,9 +165,9 @@ fi
 
 # ------ At least one from (parallel, usb) must be enabled ------
 
-if [ test x$support_parallel = xfalse ] && [ test x$support_usb = xfalse ]; then
-  AC_MSG_ERROR([Support for both parallel and usb cables is disabled.])
-fi 
+#if [ test x$support_parallel = xfalse ] && [ test x$support_usb = xfalse ]; then
+#  AC_MSG_ERROR([Support for both parallel and usb cables is disabled.])
+#fi 
 
 # ------ Check whether the xilinx parallel cable mode is given ------
 # This argument should be called --set-xxx and not --enable-xxx ,

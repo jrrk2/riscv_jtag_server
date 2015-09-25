@@ -48,8 +48,11 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hardware_monitor.h"
 #include "hwp_server.h"
 
-#include <pulp.h>
 //#define HAS_ICACHE
+
+#ifdef HAS_ICACHE
+#include <pulp.h>
+#endif
 
 /* Define to log each packet */
 #define RSP_TRACE  0

@@ -31,6 +31,7 @@ my_headers = \
   spr-defs.h \
   bsdl_parse.h \
   cable_sim.h \
+  cable_zynq.h \
   errcodes.h \
   legacy_dbg_commands.h \
   utilities.h
@@ -73,6 +74,12 @@ if SUPPORT_USB_CABLES
   # libusb must follow libftdi in the list of libraries
   adv_jtag_bridge_LDFLAGS  += -lusb
 endif
+
+if SUPPORT_ZYNQ_CABLE
+  adv_jtag_bridge_CPPFLAGS += -D__SUPPORT_ZYNQ_CABLE__
+  adv_jtag_bridge_SOURCES  += cable_zynq.h cable_zynq.c
+endif
+
 
 if INCLUDE_JSP_SERVER
   adv_jtag_bridge_CPPFLAGS += -DENABLE_JSP

@@ -77,6 +77,10 @@ void cable_setup(void)
   jtag_cables[i++] = cable_ft245_get_driver();
  #endif
 #endif
+
+ #ifdef __SUPPORT_ZYNQ_CABLE__
+  jtag_cables[i++] = cable_zynq_get_driver();
+ #endif
 }
 
 /* Selects a cable for use */
