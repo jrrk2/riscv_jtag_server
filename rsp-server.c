@@ -48,7 +48,7 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hardware_monitor.h"
 #include "hwp_server.h"
 
-//#define HAS_ICACHE
+#define HAS_ICACHE
 
 #ifdef HAS_ICACHE
 #include <pulp.h>
@@ -532,7 +532,7 @@ int handle_rsp (void)
 #endif
                             }
                         }
-                      
+
                       rsp_report_exception();
                       rsp.client_waiting = 0;           /* No longer waiting */
                     }
@@ -571,7 +571,7 @@ int handle_rsp (void)
 //   We flag up a warning if an exception is already pending, and ignore the
 //   earlier exception.
 
-//   @param[in] except  The exception                          
+//   @param[in] except  The exception
 //---------------------------------------------------------------------------
 
 void rsp_exception (unsigned long int  except)
@@ -580,24 +580,24 @@ void rsp_exception (unsigned long int  except)
 
   switch (except)
     {
-    case SPR_DRR_RSTE:    sigval = TARGET_SIGNAL_PWR;  break;
-    case SPR_DRR_BUSEE:   sigval = TARGET_SIGNAL_BUS;  break;
-    case SPR_DRR_DPFE:      sigval = TARGET_SIGNAL_SEGV; break;
-    case SPR_DRR_IPFE:      sigval = TARGET_SIGNAL_SEGV; break;
-    case SPR_DRR_TTE:     sigval = TARGET_SIGNAL_ALRM; break;
+    case SPR_DRR_RSTE:  sigval = TARGET_SIGNAL_PWR;  break;
+    case SPR_DRR_BUSEE: sigval = TARGET_SIGNAL_BUS;  break;
+    case SPR_DRR_DPFE:  sigval = TARGET_SIGNAL_SEGV; break;
+    case SPR_DRR_IPFE:  sigval = TARGET_SIGNAL_SEGV; break;
+    case SPR_DRR_TTE:   sigval = TARGET_SIGNAL_ALRM; break;
     case SPR_DRR_AE:    sigval = TARGET_SIGNAL_BUS;  break;
-    case SPR_DRR_IIE:  sigval = TARGET_SIGNAL_ILL;  break;
-    case SPR_DRR_IE:      sigval = TARGET_SIGNAL_INT;  break;
-    case SPR_DRR_DME: sigval = TARGET_SIGNAL_SEGV; break;
-    case SPR_DRR_IME: sigval = TARGET_SIGNAL_SEGV; break;
+    case SPR_DRR_IIE:   sigval = TARGET_SIGNAL_ILL;  break;
+    case SPR_DRR_IE:    sigval = TARGET_SIGNAL_INT;  break;
+    case SPR_DRR_DME:   sigval = TARGET_SIGNAL_SEGV; break;
+    case SPR_DRR_IME:   sigval = TARGET_SIGNAL_SEGV; break;
     case SPR_DRR_RE:    sigval = TARGET_SIGNAL_FPE;  break;
-    case SPR_DRR_SCE:  sigval = TARGET_SIGNAL_USR2; break;
-    case SPR_DRR_FPE:      sigval = TARGET_SIGNAL_FPE;  break;
-    case SPR_DRR_TE:     sigval = TARGET_SIGNAL_TRAP; break;
+    case SPR_DRR_SCE:   sigval = TARGET_SIGNAL_USR2; break;
+    case SPR_DRR_FPE:   sigval = TARGET_SIGNAL_FPE;  break;
+    case SPR_DRR_TE:    sigval = TARGET_SIGNAL_TRAP; break;
 
     // In the current OR1200 hardware implementation, a single-step does not create a TRAP,
     // the DSR reads back 0.  GDB expects a TRAP, so...
-    case 0:            sigval = TARGET_SIGNAL_TRAP; break;
+    case 0:             sigval = TARGET_SIGNAL_TRAP; break;
 
     default:
       fprintf (stderr, "Warning: Unknown RSP exception %lu: Ignored\n", except);
@@ -612,7 +612,7 @@ void rsp_exception (unsigned long int  except)
 
   rsp.sigval         = sigval;          // Save the signal value
 
-} // rsp_exception () 
+} // rsp_exception ()
 
 
 
@@ -841,7 +841,7 @@ rsp_client_request ()
     case 'G':
       rsp_write_all_regs (buf);
       return;
-      
+
     case 'H':
       /* Set the thread number of subsequent operations. For now ignore
          silently and just reply "OK" */
@@ -974,7 +974,7 @@ rsp_server_close ()
 /*---------------------------------------------------------------------------*/
 static void
 rsp_client_close ()
-{  
+{
   // If target is running, stop it so we can modify SPRs
   if(rsp.target_running) {
     set_stall_state(1);
@@ -1266,7 +1266,7 @@ put_rsp_char (char  c)
               rsp_client_close ();
               return;
             }
-      
+
           break;
 
         case 0:
@@ -1314,7 +1314,7 @@ get_rsp_char ()
               rsp_client_close ();
               return  -1;
             }
-      
+
           break;
 
         case 0:
@@ -1458,7 +1458,7 @@ mp_hash_lookup (enum mp_type       type,
 
   /* Not found */
   return  NULL;
-      
+
 }       /* mp_hash_lookup () */
 
 
@@ -1512,7 +1512,7 @@ mp_hash_delete (enum mp_type       type,
 
   /* Not found */
   return  NULL;
-      
+
 }       /* mp_hash_delete () */
 
 
@@ -1572,7 +1572,7 @@ reg2hex (unsigned long int  val,
       buf[n*2+1] = hexchars[(val >> (n*8)) & 0xf];
 #endif
     }
-  
+
 #endif
 
   buf[8] = 0;                   /* Useful to terminate as string */
@@ -2738,7 +2738,7 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
 
           //fprintf(stderr, "Replacing instr with original at addr %08X\n", addr);
 
-#ifdef HAS_CACHE
+#ifdef HAS_ICACHE
           // With the shared pcache, we can only flush the whole cache
           uint32_t val = 0;
           dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
@@ -2752,7 +2752,7 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
 
       put_str_packet ("OK");
       break;;
-     
+
     case BP_HARDWARE:
     case WP_WRITE:
     case WP_READ:
@@ -2798,7 +2798,7 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
     }
 }       /* rsp_remove_matchpoint () */
 
-      
+
 /*---------------------------------------------------------------------------*/
 /*!Handle a RSP insert breakpoint or matchpoint request
 
@@ -2856,7 +2856,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       }
 #if 0
       dbg_cpu0_write(SPR_ICBIR, addr);  // Flush the modified instruction from the cache
-#elif HAS_CACHE
+#elif HAS_ICACHE
       // With the shared pcache, we can only flush the whole cache
       uint32_t val = 0;
       dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
@@ -2866,7 +2866,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
 #endif
       put_str_packet ("OK");
       break;
-     
+
     case BP_HARDWARE:
       //fprintf(stderr, "Setting BP_HARDWARE breakpoint\n");
       hwp = hwp_get_available_watchpoint();
@@ -2904,7 +2904,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
     case WP_WRITE:
       hwp = hwp_get_available_watchpoint();
       if(hwp == -1) /* No HWP available */
-        {                 
+        {
           fprintf(stderr, "Warning: no hardware watchpoints available to satisfy GDB request for write watchpoint");
           put_str_packet ("");
         }
@@ -3003,7 +3003,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
     }
 
 }       /* rsp_insert_matchpoint () */
- 
+
 
 // Additions from this point on were added solely to handle hardware,
 // and did not come from simulator interface code.
