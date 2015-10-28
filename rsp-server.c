@@ -2856,7 +2856,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       }
 #if 0
       dbg_cpu0_write(SPR_ICBIR, addr);  // Flush the modified instruction from the cache
-#elif HAS_ICACHE
+#elif defined HAS_ICACHE
       // With the shared pcache, we can only flush the whole cache
       uint32_t val = 0;
       dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
