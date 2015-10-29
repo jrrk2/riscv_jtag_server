@@ -19,7 +19,7 @@ FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 more details.
 
 You should have received a copy of the GNU General Public License along
-with this program.  If not, see <http://www.gnu.org/licenses/>.  
+with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /* This program is commented throughout in a fashion suitable for processing
@@ -89,11 +89,11 @@ enum target_signal {
   TARGET_SIGNAL_PWR  = 32
 };
 
-/*! The maximum number of characters in inbound/outbound buffers.  
+/*! The maximum number of characters in inbound/outbound buffers.
  * The max is 16kB, and larger buffers make for faster
  * transfer times, so use the max.  If your setup is prone
  * to JTAG communication errors, you may want to use a smaller
- * size. 
+ * size.
  */
 #define GDB_BUF_MAX  (16*1024) // ((NUM_REGS) * 8 + 1)
 
@@ -460,7 +460,6 @@ int handle_rsp (void)
 
   /* Poll is always blocking. We can't do anything more until something
      happens here. */
-  //fprintf(stderr, "Polling...\n");
   switch (poll (fds, 2, -1))
     {
     case -1:
@@ -515,7 +514,7 @@ int handle_rsp (void)
                         {
                           if(NULL != mp_hash_lookup (BP_MEMORY, ppcval))  // Is this a breakpoint we set? (we also get a TRAP on single-step)
                             {
-                              //fprintf(stderr, "Resetting NPC to PPC\n");
+                              //fprintf(stderr, "0: Resetting NPC to PPC\n");
                               set_npc(ppcval);
                             }
                           else 
@@ -530,6 +529,8 @@ int handle_rsp (void)
                                   set_npc(ppcval);
                                 }
 #endif
+                              //fprintf(stderr, "1: Resetting NPC to PPC\n");
+                              //set_npc(ppcval);
                             }
                         }
 
@@ -2744,7 +2745,11 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
           dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
           val = 0xFFFFFFFF;
           dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Enable all shared banks
-          dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR+0x0C, &val, 1); // Flush all L0 buffers
+
+          // Set NPC if needed
+          dbg_cpu0_read(SPR_NPC, &val);
+          if (val == addr)
+            set_npc(val);
 #endif
 
           free (mpe);
@@ -2862,7 +2867,11 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
       val = 0xFFFFFFFF;
       dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Enable all shared banks
-      dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR+0x0C, &val, 1); // Flush all L0 buffers
+
+      // Set NPC if needed
+      dbg_cpu0_read(SPR_NPC, &val);
+      if (val == addr)
+        set_npc(val);
 #endif
       put_str_packet ("OK");
       break;
@@ -2935,7 +2944,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
     case WP_READ:
       hwp = hwp_get_available_watchpoint();
       if(hwp == -1) /* No HWP available */
-        {                 
+        {
           fprintf(stderr, "Warning: no hardware watchpoints available to satisfy GDB request for read watchpoint");
           put_str_packet ("");
         }
@@ -2966,7 +2975,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
     case WP_ACCESS:
        hwp = hwp_get_available_watchpoint();
       if(hwp == -1) /* No HWP available */
-        {          
+        {
           fprintf(stderr, "Warning: no hardware watchpoints available to satisfy GDB request for access watchpoint");
           put_str_packet ("");
         }
