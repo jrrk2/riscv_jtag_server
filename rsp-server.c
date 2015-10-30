@@ -48,9 +48,8 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hardware_monitor.h"
 #include "hwp_server.h"
 
-#define HAS_ICACHE
 
-#ifdef HAS_ICACHE
+#ifdef PULP
 #include <pulp.h>
 #endif
 
@@ -2739,7 +2738,7 @@ rsp_remove_matchpoint (struct rsp_buf *buf)
 
           //fprintf(stderr, "Replacing instr with original at addr %08X\n", addr);
 
-#ifdef HAS_ICACHE
+#ifdef PULP
           // With the shared pcache, we can only flush the whole cache
           uint32_t val = 0;
           dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks
@@ -2861,7 +2860,7 @@ rsp_insert_matchpoint (struct rsp_buf *buf)
       }
 #if 0
       dbg_cpu0_write(SPR_ICBIR, addr);  // Flush the modified instruction from the cache
-#elif defined HAS_ICACHE
+#elif defined PULP
       // With the shared pcache, we can only flush the whole cache
       uint32_t val = 0;
       dbg_wb_write_block32(ICACHE_CTRL_BASE_ADDR, &val, 1); // Disable all shared banks

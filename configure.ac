@@ -92,6 +92,28 @@ else
 fi
 
 
+# ----------- Check whether to build for PULP ---------
+
+AC_MSG_CHECKING(whether to build for PULP)
+AC_ARG_ENABLE([pulp],
+              [AS_HELP_STRING([--enable-pulp=[[yes/no]]],
+                              [build for PULP [default=no]])],
+              [case "${enableval}" in
+               yes) pulp=true ;;
+               no)  pulp=false ;;
+               *) AC_MSG_ERROR([bad value ${enableval} for --enable-pulp]) ;;
+               esac],
+              pulp=false)
+
+if [ test x$pulp = xtrue ]
+then
+    AC_MSG_RESULT(yes)
+    CFLAGS="$CFLAGS -DPULP"
+else
+    AC_MSG_RESULT(no)
+fi
+
+
 # ----------- Check whether to ZYNQ cable -----------
 
 AC_MSG_CHECKING(whether to support ZYNQ cable)
@@ -146,13 +168,13 @@ AM_COND_IF([SUPPORT_PARALLEL_CABLES],[AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)])
 AC_MSG_CHECKING(whether to support usb cables)
 AC_ARG_ENABLE([usb-cables],
               [AS_HELP_STRING([--enable-usb-cables=[[yes/no]]],
-                              [support usb cables (requires libusb) [default=yes]])],
+                              [support usb cables (requires libusb) [default=no]])],
               [case "${enableval}" in
                yes) support_usb=true ;;
                no)  support_usb=false ;;
                *) AC_MSG_ERROR([bad value ${enableval} for --enable-usb-cables]) ;;
                esac],
-              support_usb=true)
+              support_usb=false)
 
 AM_CONDITIONAL(SUPPORT_USB_CABLES,[test x$support_usb = xtrue])
 AM_COND_IF([SUPPORT_USB_CABLES],[AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)])
@@ -219,7 +241,7 @@ esac
 AC_MSG_CHECKING(whether to support ftdi cables)
 AC_ARG_ENABLE([ftdi-cables],
               [AS_HELP_STRING([--enable-ftdi-cables=[[yes/no]]],
-                              [support ftdi cables (requires libftdi) [default=yes]])],
+                              [support ftdi cables (requires libftdi) [default=no]])],
               [case "${enableval}" in
                yes) support_ftdi=true ;;
                no)  support_ftdi=false ;;
