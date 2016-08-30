@@ -1,0 +1,4 @@
+$jp_in call=vpi_jp_in acc+=rw,frc:*
+$jp_out call=vpi_jp_out acc+=rw,frc:*
+$jp_init call=init_sock acc+=rw,frc:*
+$jp_wait_time call=jp_wait_time acc+=rw,frc:*

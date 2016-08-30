@@ -21,10 +21,11 @@
 
 #include <stdio.h>
 #include <string.h>
-
+#include <unistd.h>
 
 #include "cable_common.h"
 #include "cable_sim.h"
+#include "cable_digilent.h"
 
 #ifdef __SUPPORT_PARALLEL_CABLES__
 #include "cable_parallel.h"
@@ -62,6 +63,7 @@ void cable_setup(void)
 
   jtag_cables[i++] = cable_rtl_get_driver();
   jtag_cables[i++] = cable_vpi_get_driver();
+  jtag_cables[i++] = cable_digilent_get_driver();
 
 #ifdef __SUPPORT_PARALLEL_CABLES__
   jtag_cables[i++] = cable_xpc3_get_driver();

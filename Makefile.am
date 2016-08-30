@@ -10,6 +10,7 @@ AUTOMAKE_OPTIONS = foreign
 bin_PROGRAMS = adv_jtag_bridge
 
 adv_jtag_bridge_CPPFLAGS =
+CC = gcc -g # -m32
 
 my_headers = \
   adv_dbg_commands.h  \
@@ -32,6 +33,7 @@ my_headers = \
   bsdl_parse.h \
   cable_sim.h \
   cable_zynq.h \
+  cable_digilent.h \
   errcodes.h \
   legacy_dbg_commands.h \
   utilities.h
@@ -51,10 +53,10 @@ adv_jtag_bridge_SOURCES = \
   dbg_api.c \
   legacy_dbg_commands.c \
   hardware_monitor.c \
-  hwp_server.c
+  hwp_server.c \
+  cable_digilent.c
 
-adv_jtag_bridge_LDFLAGS = -lpthread -lrt
-
+LIBS = -lpthread -lrt -L/usr/lib64/digilent/adept -ldjtg -ldmgr
 
 if SUPPORT_PARALLEL_CABLES
   adv_jtag_bridge_CPPFLAGS += -D__SUPPORT_PARALLEL_CABLES__
@@ -63,7 +65,7 @@ endif
 
 if SUPPORT_FTDI_CABLES
   adv_jtag_bridge_CPPFLAGS += -D__SUPPORT_FTDI_CABLES__
-  adv_jtag_bridge_LDFLAGS  += -lftdi
+  LIBS  += -lftdi
   adv_jtag_bridge_SOURCES  += cable_ft2232.h cable_ft245.h cable_ft2232.c cable_ft245.c
 endif
 
@@ -72,7 +74,7 @@ if SUPPORT_USB_CABLES
   adv_jtag_bridge_CPPFLAGS += -D__SUPPORT_USB_CABLES__
   adv_jtag_bridge_SOURCES  += cable_xpc_dlc9.h cable_usbblaster.h cable_xpc_dlc9.c cable_usbblaster.c
   # libusb must follow libftdi in the list of libraries
-  adv_jtag_bridge_LDFLAGS  += -lusb
+  LIBS += -lusb
 endif
 
 if SUPPORT_ZYNQ_CABLE

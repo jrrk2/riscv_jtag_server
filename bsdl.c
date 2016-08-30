@@ -58,8 +58,9 @@ void bsdl_init(void)
   bsdl_dirs[0] = strdup("/opt/bsdl"); 
   bsdl_dirs[1] = strdup("/usr/share/bsdl");
   bsdl_dirs[2] = strdup("~/.bsdl");
-  bsdl_dirs[3] = strdup(".");
-  bsdl_current_dir = 3;
+  bsdl_dirs[3] = strdup("bsdl");
+  bsdl_dirs[4] = strdup(".");
+  bsdl_current_dir = 4;
   bsdl_scratchpad = (char *) malloc(64);
   bsdl_scratchpad_size = 64;
 }
