@@ -47,9 +47,7 @@
 // Define the tests to be performed here
 #define TEST_SRAM
 //#define TEST_SDRAM
-#define TEST_OR1K
-//#define TEST_8051  // run a test on an 8051 on CPU1
-
+#define TEST_PULPINO
 
 // Defines which depend on user-defined values, don't change these
 #define FLASH_BAR_VAL    FLASH_BASE_ADDR
@@ -96,12 +94,8 @@ int dbg_test()
     success |= test_sram();
 #endif
   
-#ifdef TEST_OR1K
-    success |= test_or1k_cpu0();
-#endif
-
-#if ((defined TEST_8051) && (defined HAS_CPU1)) 
-    success |= test_8051_cpu1();
+#ifdef TEST_PULPINO
+    success |= test_pulpino_cpu0();
 #endif
 
     return success;
@@ -115,26 +109,12 @@ int stall_cpus(void)
 {
   unsigned char stalled;
 
-#ifdef HAS_CPU1
-  printf("Stall 8051 - ");
-  CHECK(dbg_cpu1_write_reg(0, 0x01)); // stall 8051
-#endif
-
-  printf("Stall or1k - ");
-  CHECK(dbg_cpu0_write_ctrl(0, 0x01));      // stall or1k
-
-
-#ifdef HAS_CPU1
-  CHECK(dbg_cpu1_read_ctrl(0, &stalled));
-  if (!(stalled & 0x1)) {
-    printf("8051 is not stalled!\n");   // check stall 8051
-    return APP_ERR_TEST_FAIL;
-  }
-#endif
+  printf("Stall pulpino - ");
+  CHECK(dbg_cpu0_write_ctrl(0, 0x01));      // stall pulpino
 
   CHECK(dbg_cpu0_read_ctrl(0, &stalled));
   if (!(stalled & 0x1)) {
-    printf("or1k is not stalled!\n");   // check stall or1k
+    printf("pulpino is not stalled!\n");   // check stall pulpino
     return APP_ERR_TEST_FAIL;
   }
 
@@ -340,9 +320,10 @@ int test_sdram_2(void)
 
 int test_sram(void)
 {
+  int i, err = 0;
   //unsigned long insn;
   uint32_t ins;
-  uint32_t insn[9];
+  uint32_t insn[256];
   insn[0] = 0x11112222;
   insn[1] = 0x33334444;
   insn[2] = 0x55556666;
@@ -352,41 +333,25 @@ int test_sram(void)
   insn[6] = 0xddddeeee;
   insn[7] = 0xffff0000;
   insn[8] = 0xdedababa;
-
+  for (i = 9; i < sizeof(insn)/sizeof(*insn); i++)
+    insn[i] = lrand48();
   printf("SRAM test: \n");
   //dbg_wb_write_block32(0x0, insn, 9);
-  
-  CHECK(dbg_wb_write32(SRAM_BASE+0x0000, 0x11112222));
-  CHECK(dbg_wb_write32(SRAM_BASE+0x0004, 0x33334444));
-  CHECK(dbg_wb_write32(SRAM_BASE+0x0008, 0x55556666));
-  CHECK(dbg_wb_write32(SRAM_BASE+0x000c, 0x77778888));
-  CHECK(dbg_wb_write32(SRAM_BASE+0x0010, 0x9999aaaa));
-  CHECK(dbg_wb_write32(SRAM_BASE+0x0014, 0xbbbbcccc));
-  CHECK(dbg_wb_write32(SRAM_BASE+0x0018, 0xddddeeee));
-  CHECK(dbg_wb_write32(SRAM_BASE+0x001c, 0xffff0000));
-  CHECK(dbg_wb_write32(SRAM_BASE+0x0020, 0xdedababa));
-  
 
-  CHECK(dbg_wb_read32(SRAM_BASE+0x0000, &ins));
-  printf("expected %x, read %x\n", 0x11112222, ins);
-  CHECK(dbg_wb_read32(SRAM_BASE+0x0004, &ins));
-  printf("expected %x, read %x\n", 0x33334444, ins);
-  CHECK(dbg_wb_read32(SRAM_BASE+0x0008, &ins));
-  printf("expected %x, read %x\n", 0x55556666, ins);
-  CHECK(dbg_wb_read32(SRAM_BASE+0x000c, &ins));
-  printf("expected %x, read %x\n", 0x77778888, ins);
-  CHECK(dbg_wb_read32(SRAM_BASE+0x0010, &ins));
-  printf("expected %x, read %x\n", 0x9999aaaa, ins);
-  CHECK(dbg_wb_read32(SRAM_BASE+0x0014, &ins));
-  printf("expected %x, read %x\n", 0xbbbbcccc, ins);
-  CHECK(dbg_wb_read32(SRAM_BASE+0x0018, &ins));
-  printf("expected %x, read %x\n", 0xddddeeee, ins);
-  CHECK(dbg_wb_read32(SRAM_BASE+0x001c, &ins));
-  printf("expected %x, read %x\n", 0xffff0000, ins);
-  CHECK(dbg_wb_read32(SRAM_BASE+0x0020, &ins));
-  printf("expected %x, read %x\n", 0xdedababa, ins);
+  for (i = 0; i < sizeof(insn); i+=4)
+    CHECK(dbg_wb_write32(SRAM_BASE+i, insn[i/4]));
+
+  for (i = 0; i < sizeof(insn); i+=4)
+    {
+      CHECK(dbg_wb_read32(SRAM_BASE+i, &ins));
+      if (ins != insn[i/4])
+	{
+	  err = 1;
+	  printf("expected %x, read %x\n", insn[i/4], ins);
+	}
+    }
  
-  if (ins != 0xdedababa) {
+  if (err) {
     printf("SRAM test failed!!!\n");
     return APP_ERR_TEST_FAIL;
   }
@@ -398,14 +363,14 @@ int test_sram(void)
 
 
 
-int test_or1k_cpu0(void)
+int test_pulpino_cpu0(void)
 {
   uint32_t npc, ppc, r1, insn;
   uint8_t stalled;
   uint32_t result;
   int i;
 
-  printf("Testing CPU0 (or1k) - writing instructions\n");
+  printf("Testing CPU0 (pulpino) - writing instructions\n");
   CHECK(dbg_wb_write32(SDRAM_BASE+0x00, 0xe0000005));   /* l.xor   r0,r0,r0   */
   CHECK(dbg_wb_write32(SDRAM_BASE+0x04, 0x9c200000));   /* l.addi  r1,r0,0x0  */
   CHECK(dbg_wb_write32(SDRAM_BASE+0x08, 0x18400000));   /* l.movhi r2,0x0000  */

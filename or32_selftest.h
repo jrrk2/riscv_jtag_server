@@ -1,6 +1,6 @@
 
-#ifndef _OR32_SELFTEST_H_
-#define _OR32_SELFTEST_H_
+#ifndef _PULPINO_SELFTEST_H_
+#define _PULPINO_SELFTEST_H_
 
 // Static memory controller defines
 #define MC_BAR_0         0x00
@@ -71,8 +71,7 @@ void init_sram(void);
 int test_sdram (void);
 int test_sdram_2(void);
 int test_sram(void);
-int test_or1k_cpu0(void);
-//int test_8051_cpu1(void);
+int test_pulpino_cpu0(void);
 
-#endif  // _OR32_SELFTEST_H_
+#endif  // _PULPINO_SELFTEST_H_
 

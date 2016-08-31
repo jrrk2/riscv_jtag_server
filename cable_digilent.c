@@ -43,11 +43,12 @@
 #include "/usr/include/digilent/adept/djtg.h"
 #include "/usr/include/digilent/adept/dmgr.h"
 
-static HIF hif;
+static HIF hif = hifInvalid;
+static char *device;
+static BOOL overlap;
 
-#define debug(...) if (getenv("ADV_DEBUG10")) fprintf(stderr, __VA_ARGS__ )
+#define debug(...) if (getenv("ADV_DEBUG")) fprintf(stderr, __VA_ARGS__ )
 
-/* Only used in the vpi */
 jtag_cable_t digilent_cable_driver = {
     .name              = "digilent",
     .inout_func        = cable_digilent_inout,
@@ -56,14 +57,54 @@ jtag_cable_t digilent_cable_driver = {
     .opt_func          = cable_digilent_opt,
     .bit_out_func      = cable_digilent_write_bit,
     .bit_inout_func    = cable_digilent_read_write_bit,
-    .stream_out_func   = cable_common_write_stream,
-    .stream_inout_func = cable_common_read_stream,
+    .stream_out_func   = cable_digilent_write_stream,
+    .stream_inout_func = cable_digilent_read_stream,
     .flush_func        = NULL,
-    .opts              = "",
-    .help              = "",
+    .opts              = "d:",
+    .help              = "-d device name as reported by 'dadutil enum' e.g. Nexys4DDR\n",
 };
 
 /*-----------------------------------------------[ DIGILENT specific functions ]---*/
+
+/* Writes bitstream via bit-bang. Can be used by any driver which does not have a high-speed transfer function.
+ * Transfers LSB to MSB of stream[0], then LSB to MSB of stream[1], etc.
+ */
+int cable_digilent_write_stream(uint32_t *stream, int len_bits, int set_last_bit) {
+  int err = APP_ERR_NONE;
+
+  if (set_last_bit)
+    {
+      int len = len_bits - 1;
+      int bits_this_index = len&31;
+      DjtgPutTdiBits(hif, 0, (BYTE*)stream, NULL, len, overlap);
+      uint8_t outval = ((stream[len/32] >> bits_this_index) & 1) | TMS;
+      DjtgPutTmsTdiBits(hif, &outval, NULL, 1, overlap);
+    }
+  else
+    DjtgPutTdiBits(hif, 0, (BYTE*)stream, NULL, len_bits, overlap);
+  return err;
+}
+
+/* Gets bitstream via bit-bang.  Can be used by any driver which does not have a high-speed transfer function.
+ * Transfers LSB to MSB of stream[0], then LSB to MSB of stream[1], etc.
+ */
+int cable_digilent_read_stream(uint32_t *outstream, uint32_t *instream, int len_bits, int set_last_bit) {
+  int err = APP_ERR_NONE;
+  if (set_last_bit)
+    {
+      int len = len_bits - 1;
+      int bits_this_index = len&31;
+      instream[len/32] = 0;
+      DjtgPutTdiBits(hif, 0, (BYTE*)outstream, (BYTE*)instream, len, overlap);
+      uint8_t inval, outval = ((outstream[len/32] >> bits_this_index) & 1) | TMS;
+      DjtgPutTmsTdiBits(hif, &outval, &inval, 1, overlap);
+      instream[len/32] |= ((inval&1) << bits_this_index);  
+    }
+  else
+    DjtgPutTdiBits(hif, 0, (BYTE*)outstream, (BYTE*)instream, len_bits, overlap);
+  return err;
+}
+
 jtag_cable_t *cable_digilent_get_driver(void)
 {
   return &digilent_cable_driver;
@@ -71,88 +112,42 @@ jtag_cable_t *cable_digilent_get_driver(void)
 
 int cable_digilent_write_bit(uint8_t packet)
 {
-  uint8_t bit_in;
-  return cable_digilent_read_write_bit(packet, &bit_in);
+  return DjtgPutTmsTdiBits(hif, &packet, NULL, 1, overlap) ? APP_ERR_NONE : APP_ERR_COMM;
 }
 
 int cable_digilent_read_write_bit(uint8_t packet_out, uint8_t *bit_in)
 {
-  BYTE rgbSnd, rgbRcv;
-  int err = APP_ERR_NONE;
-
-        int tdi = ((packet_out & TDO) ? 0x01 : 0x00);
-        int tms = ((packet_out & TMS) ? 1 : 0);
-
-	rgbSnd = (tms << 1) | tdi;
-	
-	DjtgPutTmsTdiBits(hif, &rgbSnd, &rgbRcv, 1, fFalse);
-	*bit_in = rgbRcv;
-	return err;
+  return DjtgPutTmsTdiBits(hif, &packet_out, bit_in, 1, overlap) ? APP_ERR_NONE : APP_ERR_COMM;
 }
 
 int cable_digilent_init()
 {
-        int i;
-        int cCodes = 0;
-	BYTE rgbSetup[] = {0xaa, 0x22, 0x00};
-        BYTE rgbTdo[4];
-	INT32 idcode;
-        INT32 rgIdcodes[16];
-	int retval = APP_ERR_NONE;
-        // DMGR API Call: DmgrOpen
-        if(!DmgrOpen(&hif, "Nexys4DDR")) {
-                printf("Error: Could not open device. Check device name\n");
-                return(-1);
-        }
+  DWORD frqSet;
+  overlap = getenv("OVERLAP") != 0;
 
-        // DJTG API CALL: DjtgEnable
-        if(!DjtgEnable(hif)) {
-                printf("Error: DjtgEnable failed\n");
-                return (-1);
-        }
+        if (hif == hifInvalid) {
+                // DGTG API Call: DjtgDisable
+	  // DMGR API Call: DmgrOpen
+	  if(!DmgrOpen(&hif, device)) {
+	    printf("Error: Could not open device \"%s\". Check device name\n", device);
+	    return APP_ERR_BAD_PARAM;
+	  }
 
-        /* Put JTAG scan chain in SHIFT-DR state. RgbSetup contains TMS/TDI bit-pairs. */
-        // DJTG API Call: DgtgPutTmsTdiBits
-        if(!DjtgPutTmsTdiBits(hif, rgbSetup, NULL, 9, fFalse)) {
-                printf("DjtgPutTmsTdiBits failed\n");
-                abort();
-        }
+	  // DJTG API CALL: DjtgEnable
+	  if(!DjtgEnable(hif)) {
+	    printf("Error: DjtgEnable failed\n");
+	    return APP_ERR_BAD_PARAM;
+	  }
 
-        /* Get IDCODES from device until we receive a value of 0x00000000 */
-        do {
-                
-                // DJTG API Call: DjtgGetTdoBits
-                if(!DjtgGetTdoBits(hif, fFalse, fFalse, rgbTdo, 32, fFalse)) {
-                        printf("Error: DjtgGetTdoBits failed\n");
-                        abort();
-                }
+	  if (!DjtgSetSpeed(hif, 100000000, &frqSet))
+	    printf("Error: DjtgSetSpeed failed\n");
+	  else
+	    printf("DjtgSetSpeed returned %dHz\n", frqSet);
 
-                // Convert array of bytes into 32-bit value
-                idcode = (rgbTdo[3] << 24) | (rgbTdo[2] << 16) | (rgbTdo[1] << 8) | (rgbTdo[0]);
-
-                // Place the IDCODEs into an array for LIFO storage
-                rgIdcodes[cCodes] = idcode;
-
-                cCodes++;
-
-        } while( idcode != 0 );
-
-        /* Show the IDCODEs in the order that they are connected on the device */
-        printf("Ordered JTAG scan chain:\n");
-        for(i=cCodes-2; i >= 0; i--) {
-                printf("0x%08x\n", rgIdcodes[i]);
-        }
-
+	  debug("DIGILENT cable ready!\n");
+	}
 	
-  debug("DIGILENT cable ready!");
-
-  return retval;
-  /*
-fail:
-  jtag_close();
-
-  return retval;
-  */
+  return APP_ERR_NONE;
 }
 
 int cable_digilent_out(uint8_t value)
@@ -183,6 +178,15 @@ int cable_digilent_inout(uint8_t value, uint8_t *inval)
 
 int cable_digilent_opt(int c, char *str)
 {
+  switch(c) {
+  case 'd':
+    device = strdup(str);
+    return cable_digilent_init();
+    break;
+  default:
+    fprintf(stderr, "Unknown parameter '%c'\n", c);
+    return APP_ERR_BAD_PARAM;
+  }
   return APP_ERR_NONE;
 }
 
@@ -201,7 +205,7 @@ int jtag_get() {
 
   BYTE rgbTdo;
   // DJTG API Call: DjtgGetTdoBits
-  if(!DjtgGetTdoBits(hif, fFalse, fFalse, &rgbTdo, 1, fFalse)) {
+  if(!DjtgGetTdoBits(hif, fFalse, fFalse, &rgbTdo, 1, overlap)) {
     printf("Error: DjtgGetTdoBits failed\n");
     abort();
   }

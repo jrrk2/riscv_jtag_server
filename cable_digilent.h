@@ -13,6 +13,8 @@ void cable_digilent_wait();
 int  cable_digilent_opt(int c, char *str);
 int cable_digilent_write_bit(uint8_t packet);
 int cable_digilent_read_write_bit(uint8_t packet_out, uint8_t *bit_in);
+int cable_digilent_read_stream(uint32_t *outstream, uint32_t *instream, int len_bits, int set_last_bit);
+int cable_digilent_write_stream(uint32_t *stream, int len_bits, int set_last_bit);
 
 void jtag_set(int tck, int trstn, int tdi, int tms);
 int jtag_get();
